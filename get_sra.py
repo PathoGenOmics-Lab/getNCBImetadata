@@ -18,7 +18,7 @@ def get_data(srp_id):
 
     if result.returncode != 0:
         logging.error(f"Error executing the command for SRA ID {srp_id}: {result.stderr}")
-        return None
+        return None, srp_id  # Modificado aquí para devolver srp_id también en caso de error
 
     output = result.stdout
     lines = output.split("\n")
@@ -26,7 +26,7 @@ def get_data(srp_id):
     data = [line.split('\t') for line in lines[1:] if line]
 
     df = pd.DataFrame(data, columns=header)
-    return df
+    return df, srp_id
 
 def arg_parser():
     parser = argparse.ArgumentParser(description='Obtain the metadata of the SRA id')
@@ -39,18 +39,28 @@ def main():
     args = arg_parser()
     list_sras = pd.read_csv(args.input, sep='\t', header=None)
     srp_ids = list_sras[0].tolist()
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-        df_list = list(executor.map(get_data, srp_ids))
-        time.sleep(1)
-    # Filtramos la lista para remover los None (casos en los que ocurrieron errores)
-    df_list = [df for df in df_list if df is not None]
 
-    if df_list:  # Si la lista no está vacía
-        final_df = pd.concat(df_list, axis=0, ignore_index=True, join='outer')
-        logging.info(f"Final dataframe:\n {final_df}")
+    final_df_list = []  # Lista para almacenar todos los DataFrames exitosos
+
+    while srp_ids:
+        error_ids = []  # Lista para almacenar los IDs que producen errores en esta iteración
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            results = executor.map(get_data, srp_ids)
+        for df, srp_id in results:
+            if df is None:
+                error_ids.append(srp_id)
+            else:
+                final_df_list.append(df)
+        srp_ids = error_ids
+        time.sleep(1)
+
+    if final_df_list:  # Si la lista final no está vacía
+        final_df = pd.concat(final_df_list, axis=0, ignore_index=True, join='outer')
+        logging.info(f"\n{final_df}")
         final_df.to_csv(args.output, sep='\t', index=False)
     else:
-        logging.warning("Could not retrieve data for any of the provided SRA IDs.")
+        logging.error("Unable to obtain data for any of the provided SRA IDs.")
+
 
 
 if __name__ == "__main__":
