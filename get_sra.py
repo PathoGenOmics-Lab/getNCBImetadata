@@ -26,7 +26,7 @@ def get_data(srp_id):
     return df
 
 def main():
-    list_sras = pd.read_csv('list_sras.tsv', sep='\t')
+    list_sras = pd.read_csv('list_sra.tsv', sep='\t', header=None)
     srp_ids = list_sras[0].tolist()
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         df_list = list(executor.map(get_data, srp_ids))
