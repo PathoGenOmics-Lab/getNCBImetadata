@@ -24,3 +24,22 @@ def get_data(srp_id):
 
     df = pd.DataFrame(data, columns=header)
     return df
+
+def main():
+    list_sras = pd.read_csv('list_sras.tsv', sep='\t')
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        df_list = list(executor.map(get_data, list_sras))
+        time.sleep(1)
+    # Filtramos la lista para remover los None (casos en los que ocurrieron errores)
+    df_list = [df for df in df_list if df is not None]
+
+    if df_list:  # Si la lista no está vacía
+        final_df = pd.concat(df_list, axis=0, ignore_index=True, join='outer')
+        print(final_df)
+        final_df.to_csv('output.tsv', sep='\t', index=False)
+    else:
+        print("No se pudo obtener datos para ninguno de los IDs SRP proporcionados.")
+
+
+if __name__ == "__main__":
+    main()
