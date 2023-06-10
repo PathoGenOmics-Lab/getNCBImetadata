@@ -61,8 +61,6 @@ def main():
     else:
         logging.error("Unable to obtain data for any of the provided SRA IDs.")
 
-
-
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     main()
