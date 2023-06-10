@@ -8,18 +8,22 @@ import time
 import logging
 import argparse
 
+# Function to get metadata of the SRA id
 def get_data(srp_id):
     '''
-    Obtain the metadata of the SRA id
+    This function runs a command to fetch metadata for a given SRA ID.
+    It then parses the command output and returns it as a pandas DataFrame.
+    If the command fails, it logs the error and returns None.
     '''
-    logging.info(f"Processing SRA ID: {srp_id}")
+    logging.info(f"Processing SRA ID: {srp_id}")  # Logs the ID that's being processed
     command = f"pysradb metadata {srp_id} --detailed"
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
     if result.returncode != 0:
         logging.error(f"Error executing the command for SRA ID {srp_id}: {result.stderr}")
-        return None, srp_id  # Modificado aquí para devolver srp_id también en caso de error
+        return None, srp_id  # If there's an error, it returns None and the problematic ID
 
+    # If there's no error, it parses the command output and returns it as a DataFrame
     output = result.stdout
     lines = output.split("\n")
     header = lines[0].split('\t')
@@ -28,6 +32,7 @@ def get_data(srp_id):
     df = pd.DataFrame(data, columns=header)
     return df, srp_id
 
+# Function to parse command line arguments
 def arg_parser():
     parser = argparse.ArgumentParser(description='Obtain the metadata of the SRA id')
     parser.add_argument('-i', '--input', type=str, required=True, help='Input file name')
@@ -35,32 +40,34 @@ def arg_parser():
     args = parser.parse_args()
     return args
 
+# Main function
 def main():
-    args = arg_parser()
-    list_sras = pd.read_csv(args.input, sep='\t', header=None)
-    srp_ids = list_sras[0].tolist()
+    args = arg_parser()  # Parse command line arguments
+    list_sras = pd.read_csv(args.input, sep='\t', header=None)  # Read the input file
+    srp_ids = list_sras[0].tolist()  # Get a list of SRA IDs
 
-    final_df_list = []  # Lista para almacenar todos los DataFrames exitosos
+    final_df_list = []  # List to store all successful DataFrames
 
-    while srp_ids:
-        error_ids = []  # Lista para almacenar los IDs que producen errores en esta iteración
+    while srp_ids:  # As long as there are SRA IDs to process
+        error_ids = []  # List to store the IDs that produce errors in this iteration
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            results = executor.map(get_data, srp_ids)
+            results = executor.map(get_data, srp_ids)  # Fetch metadata for all IDs
         for df, srp_id in results:
-            if df is None:
-                error_ids.append(srp_id)
-            else:
-                final_df_list.append(df)
-        srp_ids = error_ids
-        time.sleep(1)
+            if df is None:  # If an error occurred
+                error_ids.append(srp_id)  # Store the problematic ID
+            else:  # If no error occurred
+                final_df_list.append(df)  # Store the resulting DataFrame
+        srp_ids = error_ids  # For the next iteration, only process the IDs that produced errors
+        time.sleep(1)  # Wait a bit to not overwhelm the API
 
-    if final_df_list:  # Si la lista final no está vacía
+    # If we got some results
+    if final_df_list:
         final_df = pd.concat(final_df_list, axis=0, ignore_index=True, join='outer')
-        logging.info(f"\n{final_df}")
-        final_df.to_csv(args.output, sep='\t', index=False)
-    else:
-        logging.error("Unable to obtain data for any of the provided SRA IDs.")
+        logging.info(f"\n{final_df}")  # Log the final DataFrame
+        final_df.to_csv(args.output, sep='\t', index=False)  # Save it to a file
+    else:  # If we didn't get any results
+        logging.error("Unable to obtain data for any of the provided SRA IDs.")  # Log an error message
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    main()
+    main()  # Run the main function
