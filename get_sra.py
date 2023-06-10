@@ -5,16 +5,19 @@ import concurrent.futures
 import subprocess
 import pandas as pd
 import time
+import logging
+import argparse
 
 def get_data(srp_id):
     '''
     Obtain the metadata of the SRA id
     '''
+    logging.info(f"Processing SRA ID: {srp_id}")
     command = f"pysradb metadata {srp_id} --detailed"
     result = subprocess.run(command, shell=True, capture_output=True, text=True)
 
     if result.returncode != 0:
-        print(f"Error al ejecutar el comando: {result.stderr}")
+        logging.error(f"Error executing the command for SRA ID {srp_id}: {result.stderr}")
         return None
 
     output = result.stdout
@@ -26,7 +29,6 @@ def get_data(srp_id):
     return df
 
 def arg_parser():
-    import argparse
     parser = argparse.ArgumentParser(description='Obtain the metadata of the SRA id')
     parser.add_argument('-i', '--input', type=str, required=True, help='Input file name')
     parser.add_argument('-o', '--output', type=str, required=True, help='Output file name')
@@ -45,11 +47,12 @@ def main():
 
     if df_list:  # Si la lista no está vacía
         final_df = pd.concat(df_list, axis=0, ignore_index=True, join='outer')
-        print(final_df)
+        logging.info(f"Final dataframe:\n {final_df}")
         final_df.to_csv(args.output, sep='\t', index=False)
     else:
-        print("No se pudo obtener datos para ninguno de los IDs SRP proporcionados.")
+        logging.warning("Could not retrieve data for any of the provided SRA IDs.")
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     main()
