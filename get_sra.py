@@ -27,8 +27,9 @@ def get_data(srp_id):
 
 def main():
     list_sras = pd.read_csv('list_sras.tsv', sep='\t')
+    srp_ids = list_sras[0].tolist()
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-        df_list = list(executor.map(get_data, list_sras))
+        df_list = list(executor.map(get_data, srp_ids))
         time.sleep(1)
     # Filtramos la lista para remover los None (casos en los que ocurrieron errores)
     df_list = [df for df in df_list if df is not None]
