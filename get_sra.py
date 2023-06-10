@@ -25,8 +25,17 @@ def get_data(srp_id):
     df = pd.DataFrame(data, columns=header)
     return df
 
+def arg_parser():
+    import argparse
+    parser = argparse.ArgumentParser(description='Obtain the metadata of the SRA id')
+    parser.add_argument('-i', '--input', type=str, required=True, help='Input file name')
+    parser.add_argument('-o', '--output', type=str, required=True, help='Output file name')
+    args = parser.parse_args()
+    return args
+
 def main():
-    list_sras = pd.read_csv('list_sra.tsv', sep='\t', header=None)
+    args = arg_parser()
+    list_sras = pd.read_csv(args.input, sep='\t', header=None)
     srp_ids = list_sras[0].tolist()
     with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
         df_list = list(executor.map(get_data, srp_ids))
@@ -37,7 +46,7 @@ def main():
     if df_list:  # Si la lista no está vacía
         final_df = pd.concat(df_list, axis=0, ignore_index=True, join='outer')
         print(final_df)
-        final_df.to_csv('output.tsv', sep='\t', index=False)
+        final_df.to_csv(args.output, sep='\t', index=False)
     else:
         print("No se pudo obtener datos para ninguno de los IDs SRP proporcionados.")
 
